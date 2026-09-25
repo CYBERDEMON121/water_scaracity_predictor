@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#07131f">
+    <meta name="description" content="AquaPulse visualizes country-level water stress and runs illustrative water scenarios.">
+    <title>AquaPulse | Water Stress Intelligence</title>
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
+</head>
+<body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="app-shell">
+        <header class="topbar">
+            <a class="brand" href="#overview" aria-label="AquaPulse home">
+                <span class="brand-mark"><span></span><span></span><span></span></span>
+                <span class="brand-copy"><strong>Aqua</strong><em>Pulse</em></span>
+            </a>
+            <div class="topbar-meta">
+                <span class="status-pill"><span class="status-dot"></span><span id="data-status">Connecting to data</span></span>
+                <span class="clock" id="live-clock" aria-label="Current local time">--:--:--</span>
+                <button class="icon-button" id="refresh-data" type="button" aria-label="Refresh water stress data" title="Refresh water stress data">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-14.9-3L3 11m0 0V5m0 6h6M4 13a8.1 8.1 0 0 0 14.9 3L21 13m0 0v6m0-6h-6"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <section class="hero section-reveal" id="overview">
+                <div class="hero-copy">
+                    <p class="eyebrow"><span class="eyebrow-line"></span>Global water intelligence</p>
+                    <h1>See the <span>pressure</span> beneath every border.</h1>
+                    <p class="hero-lede">Explore the latest country-level water-stress estimates, compare pressure zones, and test a local scenario in seconds.</p>
+                    <div class="hero-actions">
+                        <a class="button button-primary" href="#predictor">Run a scenario <span>↗</span></a>
+                        <button class="button button-ghost" id="focus-map" type="button">Explore the map <span>↓</span></button>
+                    </div>
+                    <div class="hero-footnote"><span class="signal-icon">◌</span><span>Latest available observations, not a live sensor feed.</span></div>
+                </div>
+                <div class="hero-visual" aria-label="Water stress overview">
+                    <div class="orbit orbit-large"></div>
+                    <div class="orbit orbit-small"></div>
+                    <div class="hero-glow"></div>
+                    <div class="hero-dial">
+                        <span class="dial-label">COUNTRY AVERAGE</span>
+                        <strong id="hero-average">—</strong>
+                        <span class="dial-unit">% water stress</span>
+                        <div class="dial-track"><span id="hero-progress"></span></div>
+                        <small id="hero-year">Awaiting latest data</small>
+                    </div>
+                    <div class="floating-chip chip-top"><span class="chip-dot chip-aqua"></span><span id="hero-reported">—</span> countries reporting</div>
+                    <div class="floating-chip chip-bottom"><span class="chip-dot chip-coral"></span><span id="hero-extreme">—</span> extreme pressure</div>
+                </div>
+            </section>
+
+            <section class="stat-grid section-reveal" aria-label="Water stress summary">
+                <article class="stat-card stat-card-aqua">
+                    <div class="stat-card-top"><span class="stat-label">Countries observed</span><span class="stat-icon">◎</span></div>
+                    <strong class="stat-value" id="stat-reported">—</strong>
+                    <span class="stat-caption">Unweighted average across reporting countries</span>
+                </article>
+                <article class="stat-card stat-card-amber">
+                    <div class="stat-card-top"><span class="stat-label">High pressure</span><span class="stat-icon">↗</span></div>
+                    <strong class="stat-value" id="stat-high">—</strong>
+                    <span class="stat-caption">At or above 25% withdrawal intensity</span>
+                </article>
+                <article class="stat-card stat-card-coral">
+                    <div class="stat-card-top"><span class="stat-label">Extreme pressure</span><span class="stat-icon">!</span></div>
+                    <strong class="stat-value" id="stat-extreme">—</strong>
+                    <span class="stat-caption">Withdrawal pressure at or above 100%</span>
+                </article>
+                <article class="stat-card stat-card-violet">
+                    <div class="stat-card-top"><span class="stat-label">Latest observation</span><span class="stat-icon">◷</span></div>
+                    <strong class="stat-value stat-year" id="stat-year">—</strong>
+                    <span class="stat-caption">World Bank / AQUASTAT release</span>
+                </article>
+            </section>
+
+            <section class="map-section section-reveal" id="map-section">
+                <div class="section-heading map-heading">
+                    <div>
+                        <p class="eyebrow"><span class="eyebrow-line"></span>Global pressure map</p>
+                        <h2>One planet. <span>Different thresholds.</span></h2>
+                    </div>
+                    <p class="section-intro">Water stress measures withdrawal as a share of available renewable freshwater resources. Hover a country or select a region to inspect its latest observation.</p>
+                </div>
+                <div class="map-layout">
+                    <div class="map-card">
+                        <div class="map-toolbar">
+                            <div class="search-box">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 5 5"></path></svg>
+                                <input id="country-search" type="search" placeholder="Find a country" autocomplete="off" aria-label="Find a country">
+                            </div>
+                            <div class="map-filter" role="group" aria-label="Filter map by water stress">
+                                <button class="filter-button active" data-filter="all" type="button">All</button>
+                                <button class="filter-button" data-filter="low" type="button">Low</button>
+                                <button class="filter-button" data-filter="moderate" type="button">Moderate</button>
+                                <button class="filter-button" data-filter="high" type="button">High</button>
+                                <button class="filter-button" data-filter="extreme" type="button">Extreme</button>
+                            </div>
+                        </div>
+                        <div class="map-frame">
+                            <div id="water-map" aria-label="Interactive world water stress map"></div>
+                            <div class="map-loading" id="map-loading"><span class="loading-spinner"></span><span>Drawing the world map…</span></div>
+                            <div class="map-message" id="map-message" role="status"></div>
+                            <div class="map-legend" aria-label="Water stress legend">
+                                <span class="legend-title">Withdrawal intensity</span>
+                                <div class="legend-scale"><span class="legend-swatch low"></span><span>Low</span><span class="legend-swatch moderate"></span><span>Moderate</span><span class="legend-swatch high"></span><span>High</span><span class="legend-swatch extreme"></span><span>Extreme</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <aside class="map-insight" id="map-insight">
+                        <div class="insight-orbit"></div>
+                        <p class="eyebrow">Map readout</p>
+                        <div class="insight-empty" id="insight-empty">
+                            <div class="empty-globe">◎</div>
+                            <h3>Select a country</h3>
+                            <p>Click any shaded country to see its latest water-stress observation.</p>
+                        </div>
+                        <div class="insight-detail" id="insight-detail" hidden>
+                            <div class="insight-country-row"><span class="country-status" id="insight-status"></span><span id="insight-category">—</span></div>
+                            <h3 id="insight-name">—</h3>
+                            <div class="insight-value"><strong id="insight-value">—</strong><span>%</span></div>
+                            <p class="insight-year">Latest observation · <span id="insight-year">—</span></p>
+                            <div class="insight-meter"><span id="insight-meter-fill"></span></div>
+                            <p class="insight-note" id="insight-note">Higher values indicate greater pressure on available renewable freshwater resources.</p>
+                            <button class="text-button" id="clear-selection" type="button">Clear selection <span>×</span></button>
+                        </div>
+                        <div class="source-stamp"><span class="source-dot"></span><span>Source: World Bank WDI · AQUASTAT <small id="source-updated"></small></span></div>
+                    </aside>
+                </div>
+            </section>
+
+            <section class="predictor-section section-reveal" id="predictor">
+                <div class="section-heading predictor-heading">
+                    <div>
+                        <p class="eyebrow"><span class="eyebrow-line"></span>Scenario lab</p>
+                        <h2>Put a place <span>on the pulse.</span></h2>
+                    </div>
+                    <p class="section-intro">Use the bundled demonstration model to explore how a set of local conditions maps to a scarcity class.</p>
+                </div>
+                <div class="predictor-layout">
+                    <form class="scenario-form" id="predictor-form" novalidate>
+                        <div class="form-heading"><span class="form-step">01</span><div><h3>Describe the scenario</h3><p>All fields are required. Values are illustrative.</p></div></div>
+                        <div class="form-grid">
+                            <label class="field-card" for="rainfall"><span class="field-label">Rainfall <small>mm / period</small></span><span class="field-input-wrap"><input id="rainfall" name="rainfall" type="number" min="0" max="5000" step="0.1" placeholder="200" required><span class="field-suffix">mm</span></span><span class="field-hint">Seasonal or annual total</span></label>
+                            <label class="field-card" for="population"><span class="field-label">Population <small>people</small></span><span class="field-input-wrap"><input id="population" name="population" type="number" min="0" max="2000000000" step="1" placeholder="1000" required><span class="field-suffix">people</span></span><span class="field-hint">Whole-number population</span></label>
+                            <label class="field-card" for="temperature"><span class="field-label">Temperature <small>°C</small></span><span class="field-input-wrap"><input id="temperature" name="temperature" type="number" min="-80" max="80" step="0.1" placeholder="25" required><span class="field-suffix">°C</span></span><span class="field-hint">Average local temperature</span></label>
+                            <label class="field-card" for="water_usage"><span class="field-label">Water usage <small>L / capita</small></span><span class="field-input-wrap"><input id="water_usage" name="water_usage" type="number" min="0" max="10000" step="0.1" placeholder="100" required><span class="field-suffix">L</span></span><span class="field-hint">Usage per person</span></label>
+                        </div>
+                        <div class="form-actions"><button class="button button-primary button-wide" id="predict-button" type="submit">Evaluate pressure <span>↗</span></button><span class="form-disclaimer">Demonstration model · validate locally before making decisions</span></div>
+                        <div class="form-error" id="form-error" role="alert" hidden></div>
+                    </form>
+                    <div class="result-card" id="prediction-result" aria-live="polite">
+                        <div class="result-placeholder" id="result-placeholder"><div class="result-radar"><span></span><span></span><span></span><b>◎</b></div><p>Your scenario readout will appear here.</p><small>Try the sample values to explore the model.</small></div>
+                        <div class="result-content" id="result-content" hidden>
+                            <div class="result-topline"><span class="eyebrow">Scenario readout</span><span class="result-model">Demo model</span></div>
+                            <div class="result-classification"><span class="result-label">Predicted scarcity</span><strong id="result-prediction">—</strong><span class="result-confidence" id="result-confidence">—</span></div>
+                            <div class="confidence-bar"><span id="confidence-fill"></span></div>
+                            <div class="probability-list" id="probability-list"></div>
+                            <p class="result-disclaimer" id="result-disclaimer"></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="method-section section-reveal">
+                <div class="method-card"><div class="method-number">02</div><div><p class="eyebrow">Read the signal responsibly</p><h2>Context makes the color meaningful.</h2><p>Water stress is a pressure indicator, not a direct measure of household access. The map combines the latest available country observations from the World Bank and AQUASTAT; values can exceed 100% when withdrawals include non-renewable or reused water.</p><a class="source-link" href="https://data.worldbank.org/indicator/ER.H2O.FWST.ZS" target="_blank" rel="noreferrer">Open the source indicator <span>↗</span></a></div></div>
+            </section>
+        </main>
+
+        <footer class="footer"><div class="brand footer-brand"><span class="brand-mark"><span></span><span></span><span></span></span><span class="brand-copy"><strong>Aqua</strong><em>Pulse</em></span></div><p>Visual exploration for a more informed water conversation.</p><span class="footer-time" id="footer-time">—</span></footer>
+    </div>
+</body>
+</html>
